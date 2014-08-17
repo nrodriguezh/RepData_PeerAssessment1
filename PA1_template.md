@@ -7,8 +7,6 @@ Date: August 17, 2014
 ---
 
 
-
-
 ## Loading and preprocessing the data
 Unzip and read the data.
 
