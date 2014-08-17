@@ -1,20 +1,135 @@
 # Reproducible Research: Peer Assessment 1
+==========================================
+Author: Nahir Rodriguez 
 
+Date: August 17, 2014
+
+---
+```{r setoptions,echo = FALSE}
+opts_chunk$set(echo = TRUE, results = "asis")
+```
 
 ## Loading and preprocessing the data
+Unzip and read the data.
 
+```{r load data}
+setwd("C:/Users/Nahir/Documents/RepData_PeerAssessment1")
 
+unzip("activity.zip")
+
+rawdb <- read.table("activity.csv",
+                    header = T,sep = ",",na.strings = c("NA"),
+                    colClasses = c("numeric","character","numeric"))
+
+db <- rawdb
+
+```
 
 ## What is mean total number of steps taken per day?
+For this part of the assignment, you can ignore the missing values in the dataset.
 
+```{r}
+dbbydate <- aggregate(steps ~ date, data = db, FUN = "sum")
+hist(dbbydate$steps,
+     main = "Number of Steps per Day",
+     xlab = "Steps")
+
+meansteps <- mean(dbbydate$steps, na.rm = FALSE)
+print(meansteps)
+mediansteps <- median(dbbydate$steps, na.rm = FALSE)
+print(mediansteps)
+```
+
+The mean total number of steps taken per day is `r format(meansteps,nsmall=0)`, while the median is `r format(mediansteps)`.
 
 
 ## What is the average daily activity pattern?
+Make a time series plot  of the 5-minute interval and the average number of steps taken, averaged across all days
 
+```{r}
+dbdactivity <- aggregate(steps ~ interval, data = db, FUN = "mean")
 
+plot(dbdactivity$interval, dbdactivity$steps,type = "l",
+     main = "Activity per 5-Minute Interval",
+     xlab = "5-Minute Interval",
+     ylab = "Steps"
+     )
+
+maxsteps <- max(dbdactivity$steps)
+print(maxsteps)
+maxstepsinterval <- dbdactivity[which.max(dbdactivity$steps),c("interval")]
+print(maxstepsinterval)
+```
+
+The 5-minute interval, which, on average across all the days in the dataset, contaied the maximum number of steps was `r maxstepsinterval` with `r format(maxsteps,nsmall=1)` steps.
 
 ## Imputing missing values
 
 
+```{r}
+nadb <- rawdb[is.na(rawdb$steps) | 
+                  is.na(rawdb$date) | 
+                  is.na(rawdb$interval),]
+narows <- nrow(nadb)
+narows
+```
+
+The total number of missing values in the dataset (i.e. the total number of rows with NAs) is `r narows`. To clean the data the corresponding mean of each 5-minute interval was used to replace NA values.
+
+
+```{r}
+completedb <- rawdb[!is.na(rawdb$steps) & 
+                        !is.na(rawdb$date) & 
+                        !is.na(rawdb$interval),]
+
+nadb <- nadb[,c("date","interval")]
+nadb <- merge(nadb,dbdactivity,by="interval")
+
+completedb2 <- rbind(completedb,nadb)
+
+cleandb <- merge(rawdb[,c(c("date","interval"))],completedb2,by=c("date","interval"),sort = FALSE)
+
+nrow(cleandb)
+nrow(nadb)+nrow(completedb)
+
+cleandbbydate <- aggregate(steps ~ date, data = cleandb, FUN = "sum")
+
+hist(cleandbbydate$steps,
+     main = "Number of Steps by Day (Clean Data Base)",
+     xlab = "Steps")
+
+cleanmeansteps <- mean(cleandbbydate$steps, na.rm = FALSE)
+print(cleanmeansteps)
+cleanmediansteps <- median(cleandbbydate$steps, na.rm = FALSE)
+print(cleanmediansteps)
+
+```
+
+Note that using the mean for that 5-minute interval to repalce NA values, the mean total number of steps taken per day is `r format(cleanmeansteps,nsmall=2)`, while the median is `r format(cleanmediansteps,nsmall=2)`. Very similar to the results with NA values included.
+
+
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+cleandb$day <- weekdays(as.Date(cleandbbydate$date,"%Y-%m-%d"))
+
+cleandb$daytype <- ""
+
+cleandb[cleandb$day %in% c("Monday","Tuesday","Wednesday","Thursday","Friday"),c("daytype")] <- "weekday"
+cleandb[cleandb$day %in% c("Saturday","Sunday"),c("daytype")] <- "weekend"
+
+dbdactivity <- aggregate(steps ~ interval + daytype, data = cleandb, FUN = "mean")
+
+
+library(lattice)
+xyplot(steps ~ interval | daytype, 
+       data = dbdactivity, 
+       layout = c(1, 2),
+       type="a",
+       xlab = "Interval",
+       ylab = "Number of steps")
+
+```
+
+There are differences in activity patterns between weekdays and weekends as seen in the graph above.
